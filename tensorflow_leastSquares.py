@@ -10,10 +10,14 @@ import matplotlib.pyplot as plt
 import scipy as sp
 import tensorflow as tf
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-
+import theano.tensor as T
 from support import *
+import time
+
 # for reproducibility between runs
 np.random.seed(123)
+
+start_time = time.time()
 
 
 def makeFakeDataset():
@@ -48,8 +52,6 @@ def makeFakeDataset():
 # V00746112
 classValue1 = 1
 classValue2 = 2
-percTrain = 1
-percTest = 1
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 np.set_printoptions(linewidth=250)
@@ -71,7 +73,7 @@ x_test, y_test = extractMine(x_test, y_test, classValue1, classValue2)
 x_train = flat_norm(x_train)
 x_test = flat_norm(x_test)
 
-x_train, y_train, x_test, y_test = makeFakeDataset()
+# x_train, y_train, x_test, y_test = makeFakeDataset()
 n_train = x_train.shape[0]
 fCnt = x_train.shape[1]
 
@@ -126,7 +128,7 @@ loss = tf.square(y-predictions)
 risk = tf.reduce_mean(loss)
 tf.summary.scalar('risk', risk)
 # define which optimizer to use
-optimizer = tf.train.GradientDescentOptimizer(0.01)
+optimizer = tf.train.GradientDescentOptimizer(0.0000001)
 # tf.summary.histogram('optimizer', optimizer)
 train = optimizer.minimize(risk)
 # tf.summary.histogram('train', train)
@@ -171,5 +173,47 @@ for i in range(0, n_epochs):
     print(MSE)
 print(np.transpose(curr_w))
 print(curr_b)
+y_test_class1 = extractClass(x_test, y_test, 1)
+y_test_class0 = extractClass(x_test, y_test, -1)
+
+test_class = []
+numClass0 = 0
+numClass1 = 0
+
+shaped_w =curr_w.reshape(curr_w.__len__(),1)
+u_val = np.matmul(x_test, shaped_w) + curr_b
+test_class_val = 1.0 / (1.0 + T.exp(-1.0*u_val).eval())
+for i in range(0, x_test.__len__()):
+    if test_class_val[i] < .5:
+        numClass0 += 1
+        test_class.append(-1)
+    elif test_class_val[i] > .5:
+        numClass1 += 1
+        test_class.append(1)
+test_class=np.array(test_class)
+y_test=y_test.reshape(1,y_test.__len__())[0]
+# print(test_class)
+# print(y_test)
+print("\n")
+print("That took", "{:.2f}".format(
+    round(time.time()-start_time, 2)), "seconds to run")
+print("We predicted we have", numClass0, "images of", classValue1, "'s.  We actually have",
+      y_test_class0.__len__(), "images of", classValue1, "'s")
+print("We predicted we have", numClass1, "images of", classValue2, "'s.  We actually have",
+      y_test_class1.__len__(), "images of", classValue2, "'s")
+
+
+print("Accuracy is", "{0:.2f}".format(round(computeAccuracy(y_test, test_class), 4)*100), "% using",
+      y_train.__len__(), "training samples and", y_test.__len__(), "testing samples, each with", fCnt, "features.")
+metrics = precision_recall_fscore_support(y_test, test_class, labels=[-1, 1])
+
+print("\t|  Precision\t|  Recall\t|  FScore")
+print("--------+---------------+---------------+-----------")
+print("Class 1\t| ", "{0:.4f}".format(round(metrics[0][1], 4)), "\t| ", "{0:.4f}".format(
+    round(metrics[1][1], 4)), "\t| ", "{0:.4f}".format(round(metrics[2][1], 4)))
+print("Class 2\t| ", "{0:.4f}".format(round(metrics[0][0], 4)), "\t| ", "{0:.4f}".format(
+    round(metrics[1][0], 4)), "\t| ", "{0:.4f}".format(round(metrics[2][0], 4)))
+print()
+
 
 # test_writer = tf.summary.FileWriter(summaries_dir + '/test')
