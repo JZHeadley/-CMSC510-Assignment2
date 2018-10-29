@@ -135,13 +135,14 @@ for i in range(0, n_epochs):
         x_batch=x_train[jS:jE, :]
         y_batch=y_train[jS:jE, :]
         # do a step of gradient descent on the micro-batch
-        _, curr_batch_risk, predBatchY=sess.run(
-            [train, risk, predictions], feed_dict={x: x_batch, y: y_batch})
+        _, curr_batch_risk, predBatchY=sess.run([train, risk, predictions], feed_dict={x: x_batch, y: y_batch})
     # training done in this epoch
+    
     # but, just so that the user can monitor progress, try current w,b on full test set
-    summary, y_pred, curr_w, curr_b=sess.run(
-        [merged, predictions, w, b], feed_dict={x: x_test, y: y_test})
-
+    summary, y_pred, curr_w, curr_b=sess.run([merged, predictions, w, b], feed_dict={x: x_test, y: y_test})
+    new_w=tf.maximum(curr_w,0)
+    new_w_assign=tf.assign(w,new_w)
+    sess.run(new_w_assign)
     # calculate and print Mean Squared Error
     MSE=np.mean(np.mean(np.square(y_pred-y_test), axis=1), axis=0)
     train_writer.add_summary(summary, i)
