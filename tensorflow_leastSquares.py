@@ -19,33 +19,6 @@ np.random.seed(123)
 
 start_time = time.time()
 
-
-def makeFakeDataset():
-    sCnt = 10000
-    sCnt2 = 2000
-
-    numberOfFeatures = 784
-
-    # true parameters w and b
-    true_w = np.zeros((numberOfFeatures, 1))
-    true_w[0] = -0.5
-    true_w[1] = 1.3
-    true_w[2] = 1.3
-    true_b = -0.3
-
-    # sample some random point in feature space
-    X = np.random.randn(sCnt+sCnt2, numberOfFeatures).astype(dtype='float32')
-
-    # calculate u=w^Tx+b
-    true_u = np.dot(X, true_w) + true_b
-
-    # add gaussian noise
-    Y = true_u + 0.01*np.random.randn(sCnt+sCnt2, 1)
-
-    # split into training and test set
-    return X[0:sCnt, :], Y[0:sCnt, :], X[sCnt:sCnt+sCnt2, :], Y[sCnt:sCnt+sCnt2, :]
-
-
 # we use the dataset with x_train being the matrix "n by fCnt"
 # with samples as rows, and the  features as columns
 # y_train is the true value of dependent variable, we have it as a matrix "n by 1"
@@ -97,12 +70,12 @@ batch_size = 128
 # w is the feature weights, a [fCnt x 1] vector
 initialW = np.random.rand(fCnt, 1).astype(dtype='float32')
 w = tf.Variable(initialW, name="w")
-tf.summary.histogram('w', w)
+# tf.summary.histogram('w', w)
 
 # b is the bias, so just a single number
 initialB = 0.0
 b = tf.Variable(initialB, name="b")
-tf.summary.scalar('b', b)
+# tf.summary.scalar('b', b)
 
 # define non-shared/placeholder variable types
 # x will be our [#samples x #features] matrix of all training samples
@@ -118,71 +91,74 @@ y = tf.placeholder(dtype=tf.float32, name='y')
 # b will be "replicated" #samples times to make both sides of + have same dimension
 # thre result is a vector with #samples entries
 predictions = tf.matmul(x, w)+b
-tf.summary.histogram('predictions', predictions)
+# tf.summary.histogram('predictions', predictions)
 
 # loss (square error of prediction) for each sample (a vector)
 loss = tf.square(y-predictions)
+# loss = tf.log(1 + tf.exp((-1 * y * tf.transpose(w) * x)))
+
 # loss = tf.losses.log_loss(labels=y, predictions=predictions)
 # tf.summary.scalar('loss', loss)
 # risk over all samples (a number)
-risk = tf.reduce_mean(loss)
-tf.summary.scalar('risk', risk)
+risk=tf.reduce_mean(loss)
+# tf.summary.scalar('risk', risk)
 # define which optimizer to use
-optimizer = tf.train.GradientDescentOptimizer(0.0000001)
+# optimizer = tf.train.ProximalGradientDescentOptimizer(0.0000001)
+optimizer=tf.train.GradientDescentOptimizer(0.0000001)
 # tf.summary.histogram('optimizer', optimizer)
-train = optimizer.minimize(risk)
+train=optimizer.minimize(risk)
 # tf.summary.histogram('train', train)
 # create a tensorflow session and initialize the variables
-sess = tf.Session()
+sess=tf.Session()
 sess.run(tf.global_variables_initializer())
 
-merged = tf.summary.merge_all()
+merged=tf.summary.merge_all()
 
-summaries_dir = "/tmp/tensorflow/mnist"
-train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
+summaries_dir="/tmp/tensorflow/mnist"
+train_writer=tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 tf.global_variables_initializer().run(session=sess)
 
 # calculate and print Mean Squared Error on the full test set, using initial (random) w,b
-y_pred = sess.run([predictions], feed_dict={x: x_test, y: y_test})[0]
-MSE = np.mean(np.square(y_pred-y_test), axis=0)[0]
+y_pred=sess.run([predictions], feed_dict={x: x_test, y: y_test})[0]
+MSE=np.mean(np.square(y_pred-y_test), axis=0)[0]
 tf.summary.scalar('MSE', MSE)
 print(MSE)
-merged = tf.summary.merge_all()
+merged=tf.summary.merge_all()
 
 # start the iterations of training
 # 1 epoch == all data samples were presented
 for i in range(0, n_epochs):
     # if dataset is large, we want to present it in chunks (called micro-batches)
     for j in range(0, n_train, batch_size):
-        jS = j
-        jE = min(n_train, j+batch_size)
-        x_batch = x_train[jS:jE, :]
-        y_batch = y_train[jS:jE, :]
+        jS=j
+        jE=min(n_train, j+batch_size)
+        x_batch=x_train[jS:jE, :]
+        y_batch=y_train[jS:jE, :]
         # do a step of gradient descent on the micro-batch
-        _, curr_batch_risk, predBatchY = sess.run(
+        _, curr_batch_risk, predBatchY=sess.run(
             [train, risk, predictions], feed_dict={x: x_batch, y: y_batch})
     # training done in this epoch
     # but, just so that the user can monitor progress, try current w,b on full test set
-    summary, y_pred, curr_w, curr_b = sess.run(
+    summary, y_pred, curr_w, curr_b=sess.run(
         [merged, predictions, w, b], feed_dict={x: x_test, y: y_test})
 
     # calculate and print Mean Squared Error
-    MSE = np.mean(np.mean(np.square(y_pred-y_test), axis=1), axis=0)
+    MSE=np.mean(np.mean(np.square(y_pred-y_test), axis=1), axis=0)
     train_writer.add_summary(summary, i)
 
     print(MSE)
 print(np.transpose(curr_w))
 print(curr_b)
-y_test_class1 = extractClass(x_test, y_test, 1)
-y_test_class0 = extractClass(x_test, y_test, -1)
+y_test_class1=extractClass(x_test, y_test, 1)
+y_test_class0=extractClass(x_test, y_test, -1)
 
-test_class = []
-numClass0 = 0
-numClass1 = 0
+test_class=[]
+numClass0=0
+numClass1=0
 
-shaped_w =curr_w.reshape(curr_w.__len__(),1)
-u_val = np.matmul(x_test, shaped_w) + curr_b
-test_class_val = 1.0 / (1.0 + T.exp(-1.0*u_val).eval())
+shaped_w=curr_w.reshape(curr_w.__len__(), 1)
+u_val=np.matmul(x_test, shaped_w) + curr_b
+test_class_val=1.0 / (1.0 + T.exp(-1.0*u_val).eval())
 for i in range(0, x_test.__len__()):
     if test_class_val[i] < .5:
         numClass0 += 1
@@ -191,7 +167,7 @@ for i in range(0, x_test.__len__()):
         numClass1 += 1
         test_class.append(1)
 test_class=np.array(test_class)
-y_test=y_test.reshape(1,y_test.__len__())[0]
+y_test=y_test.reshape(1, y_test.__len__())[0]
 # print(test_class)
 # print(y_test)
 print("\n")
@@ -205,7 +181,7 @@ print("We predicted we have", numClass1, "images of", classValue2, "'s.  We actu
 
 print("Accuracy is", "{0:.2f}".format(round(computeAccuracy(y_test, test_class), 4)*100), "% using",
       y_train.__len__(), "training samples and", y_test.__len__(), "testing samples, each with", fCnt, "features.")
-metrics = precision_recall_fscore_support(y_test, test_class, labels=[-1, 1])
+metrics=precision_recall_fscore_support(y_test, test_class, labels=[-1, 1])
 
 print("\t|  Precision\t|  Recall\t|  FScore")
 print("--------+---------------+---------------+-----------")
