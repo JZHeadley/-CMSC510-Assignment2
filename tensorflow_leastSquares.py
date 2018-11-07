@@ -12,6 +12,8 @@ import tensorflow as tf
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from support import *
 import time
+from tensorboard import summary as summary_lib
+
 
 
 def makeFakeDataset():
@@ -76,11 +78,11 @@ fCnt = x_train.shape[1]
 # START OF LEARNING
 
 # number of epchos. 1 epoch is when all training data is seen
-n_epochs = 100
+n_epochs = 250
 
 # number of samples to present as micro-batch
 # could be just n_train
-# or if dataset is large, could be a small chunk of if
+# or if dataset is large, could be a small chunk of it
 batch_size = 128
 # ^^^ says: present the training set in chunks (micro-batches) of 128 samples
 
@@ -112,33 +114,36 @@ y = tf.placeholder(dtype=tf.float64, name='y')
 # b will be "replicated" #samples times to make both sides of + have same dimension
 # thre result is a vector with #samples entries
 predictions = tf.matmul(x, w) + b
-# tf.summary.histogram('predictions', predictions)
 
-# loss (square error of prediction) for each sample (a vector)
 # loss = tf.square(y-predictions)
-loss = tf.log(
-    1 + tf.exp(
-        tf.multiply(tf.negative(y), predictions)
-    )
-)
-# w*x then * y look at dimensionality
+loss = tf.log(1 + tf.exp(tf.multiply(tf.negative(y), predictions)))
 
-# loss = tf.log(1 + tf.exp(tf.matmul(tf.matmul(tf.negative(y), tf.transpose(w)), x)))
-# loss = tf.log(1 + tf.exp((-1.0 * y) * tf.transpose(w) * x))
-# loss = tf.losses.log_loss(labels=y, predictions=predictions)
-tf.summary.scalar('loss', loss[0][0])
+tf.summary.histogram('loss', loss)
 
-# risk over all samples (a number)
 risk = tf.reduce_mean(loss)
 tf.summary.scalar('risk', risk)
-# define which optimizer to use
-optimizer = tf.train.GradientDescentOptimizer(0.01)
-# tf.summary.histogram('optimizer', optimizer)
+
+optimizer = tf.train.GradientDescentOptimizer(0.1)
 train = optimizer.minimize(risk)
-# tf.summary.histogram('train', train)
+
+accuracy, _ = tf.metrics.accuracy(y_test, predictions,name='Accuracy')
+tf.summary.scalar('Accuracy', accuracy)
+
+# data, update_op = tf.contrib.metrics.precision_recall_at_equal_thresholds(
+#     predictions=tf.map_fn(lambda i:i>0,predictions),
+#     labels=tf.map_fn(lambda i:i>0,y_test))
+# summary_lib.pr_curve_raw_data_op(
+#     true_positive_counts=data.tp,
+#     false_positive_counts=data.fp,
+#     true_negative_counts=data.tn,
+#     false_negative_counts=data.fn,
+#     precision=data.precision,
+#     recall=data.recall)
+
 # create a tensorflow session and initialize the variables
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+sess.run(tf.local_variables_initializer())
 
 merged = tf.summary.merge_all()
 
@@ -155,7 +160,7 @@ merged = tf.summary.merge_all()
 
 # start the iterations of training
 # 1 epoch == all data samples were presented
-z = 100
+z = 1000000000
 proximal_step = 1 / (2 * z)
 for i in range(0, n_epochs):
     # if dataset is large, we want to present it in chunks (called micro-batches)
@@ -179,9 +184,6 @@ for i in range(0, n_epochs):
     # but, just so that the user can monitor progress, try current w,b on full test set
     summary, y_pred, curr_w, curr_b = sess.run(
         [merged, predictions, w, b], feed_dict={x: x_test, y: y_test})
-  # calculate and print Mean Squared Error
-    # print("w is", curr_w)
-    # print("b is", curr_b)
     MSE = np.mean(np.mean(np.square(y_pred-y_test), axis=1), axis=0)
     train_writer.add_summary(summary, i)
     print(MSE)
