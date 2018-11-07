@@ -9,7 +9,7 @@ def normalize(dataset):
     for i in range(0, dataset.__len__()):
         for j in range(0, dataset[i].__len__()):
             if dataset[i][j] > 0:
-                dataset[i][j] = dataset[i][j]# / float(255)
+                dataset[i][j] = float(dataset[i][j] / float(255))
     return dataset
 
 
@@ -50,7 +50,7 @@ def extractMine(x, y, class1, class2):
                 y_mine.append(1)
             elif(y[i] == class2):
                 y_mine.append(-1)
-    return (np.array(x_mine), np.array(y_mine).reshape(y_mine.__len__(),1))
+    return (np.array(x_mine), np.array(y_mine).reshape(y_mine.__len__(), 1))
 
 
 def featureSelection(x):
