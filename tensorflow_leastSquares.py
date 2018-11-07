@@ -155,6 +155,8 @@ merged = tf.summary.merge_all()
 
 # start the iterations of training
 # 1 epoch == all data samples were presented
+z = 100
+proximal_step = 1 / (2 * z)
 for i in range(0, n_epochs):
     # if dataset is large, we want to present it in chunks (called micro-batches)
     for j in range(0, n_train, batch_size):
@@ -165,9 +167,14 @@ for i in range(0, n_epochs):
         _, curr_batch_risk, predBatchY, curr_w = sess.run(
             [train, risk, predictions, w], feed_dict={x: x_batch, y: y_batch})
     # training done in this epoch
-        # new_w = tf.maximum(curr_w, 0)
-        # new_w_assign = tf.assign(w, new_w)
-        # sess.run(new_w_assign)
+    if curr_w.any() == 0:
+        new_w = 0
+    elif curr_w.any() > proximal_step:
+        new_w = curr_w - proximal_step
+    elif curr_w.any() < -1 * proximal_step:
+        new_w = curr_w + proximal_step
+    new_w_assign = tf.assign(w, new_w)
+    sess.run(new_w_assign)
     print("risk:", curr_batch_risk)
     # but, just so that the user can monitor progress, try current w,b on full test set
     summary, y_pred, curr_w, curr_b = sess.run(
